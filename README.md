@@ -1,16 +1,29 @@
-# React + Vite
+# Flyer Config Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A companion visual tool for the main Flyer Generator application. 
 
-Currently, two official plugins are available:
+Every year, the event flyer template changes, which means the coordinates for the text layers and the user's profile picture also need to be updated. Instead of guessing coordinates in a JSON file, this app provides a drag-and-drop visual interface to automatically generate the configuration file needed by the main app.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## How it works
 
-## React Compiler
+1. **Upload your base template:** Drop in the raw, unedited flyer image for the new year (e.g. `temp_v2.png`).
+2. **Drag and position:** Move the profile picture mask and text layers (Name, Position, etc.) directly on the canvas exactly where they belong in the new design.
+3. **Tweak the styling:** Adjust font sizes, alignment, colors, mask radius, and border thickness using the sidebar controls.
+4. **Export:** Click the download button to generate a `flyerConfig.json` file.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Once exported, simply drop the generated `flyerConfig.json` into the main Flyer Generator app, and it will immediately know how to map users' photos and data onto the new template.
 
-## Expanding the Oxlint configuration
+## Running Locally
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+This is a standalone React application built with Vite.
+
+```bash
+# Install dependencies
+npm install
+
+# Start the dev server
+npm run dev
+```
+
+## Styling Notes
+The UI relies on the exact same design system (glassmorphism, CSS grid, dark mode colors) as the root application to ensure a cohesive experience across all internal tools.
