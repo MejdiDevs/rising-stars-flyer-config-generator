@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Download, ImagePlus, Check } from 'lucide-react';
+import { Upload, Download, ImagePlus, Check, Eye } from 'lucide-react';
+import ColorPicker from 'react-best-gradient-color-picker';
+import PreviewModal from './PreviewModal';
 import './index.css';
 
 const DEFAULT_CONFIG = {
@@ -12,18 +14,18 @@ const DEFAULT_CONFIG = {
     radius: 450,
     borderWidth: 0,
     borderColor: "#ffffff",
-    maskMode: "detect-purple-tag"
+    maskMode: "circle-on-top"
   },
   text: {
-    fontName: "OutfitFont",
+    fontName: "Outfit",
     align: "left",
     baseline: "top",
-    color: "#ffffff",
+    color: "linear-gradient(90deg, rgba(168,85,247,1) 0%, rgba(219,39,119,1) 50%, rgba(255,255,255,1) 100%)",
     left: 500,
     fields: [
-      { id: "name", style: "bold", size: 95, y: 1870 },
-      { id: "position", style: "", size: 60, y: 2000 },
-      { id: "optional", style: "", size: 48, y: 2090 }
+      { id: "name", isBold: true, isItalic: false, size: 95, y: 1870 },
+      { id: "position", isBold: false, isItalic: false, size: 60, y: 2000 },
+      { id: "optional", isBold: false, isItalic: false, size: 48, y: 2090 }
     ]
   }
 };
@@ -34,9 +36,19 @@ export default function App() {
   const [imageSize, setImageSize] = useState({ width: 3000, height: 3000 });
   const [scale, setScale] = useState(1);
   const [dragActive, setDragActive] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const pickerContainerRef = useRef(null);
+  const [pickerWidth, setPickerWidth] = useState(294);
+
+  // Measure the sidebar panel width once on mount, subtract 60px for padding
+  useEffect(() => {
+    if (pickerContainerRef.current && pickerContainerRef.current.clientWidth > 0) {
+      setPickerWidth(pickerContainerRef.current.clientWidth - 60);
+    }
+  }, []);
 
   // Load Image and update dimensions
   const handleImageUpload = (file) => {
@@ -149,7 +161,24 @@ export default function App() {
   };
 
   const downloadJson = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+    // Generate the final exported config
+    const exportConfig = { ...config };
+    
+    // Process Fonts & Styles
+    exportConfig.text = { ...exportConfig.text };
+    exportConfig.text.fields = exportConfig.text.fields.map(f => {
+      const fieldExport = { ...f };
+      let styles = [];
+      if (f.isItalic) styles.push('italic');
+      if (f.isBold) styles.push('bold');
+      fieldExport.style = styles.join(' ');
+      
+      delete fieldExport.isBold;
+      delete fieldExport.isItalic;
+      return fieldExport;
+    });
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportConfig, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
     dlAnchorElem.setAttribute("download", "flyerConfig.json");
@@ -172,7 +201,7 @@ export default function App() {
       <main className="main-grid">
         
         {/* Left Side: Control Panel (Form Inputs) */}
-        <section className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <section ref={pickerContainerRef} className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '6px', color: '#ffffff' }}>Design Structure</h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Upload your new template image to start configuring visually.</p>
@@ -238,6 +267,34 @@ export default function App() {
                 <label className="input-label">Profile Mask Configuration</label>
                 
                 <div className="input-group">
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Mask Processing Mode</label>
+                  <select 
+                    className="text-input" 
+                    value={config.pfp.maskMode}
+                    onChange={e => setConfig(c => ({...c, pfp: {...c.pfp, maskMode: e.target.value}}))}
+                  >
+                    <option value="circle-on-top">Circle on Top (Default)</option>
+                    <option value="detect-purple-tag">Auto-Detect Shape (Purple Placeholder)</option>
+                    <option value="transparent">Use Transparent Image Hole</option>
+                  </select>
+                  {config.pfp.maskMode === 'circle-on-top' && (
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: '1.4' }}>
+                      <strong>Recommended:</strong> Just pops the image into a simple circle directly on top of the template.
+                    </p>
+                  )}
+                  {config.pfp.maskMode === 'detect-purple-tag' && (
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: '1.4' }}>
+                      Use this when your template has a solid purple placeholder shape for the profile picture.
+                    </p>
+                  )}
+                  {config.pfp.maskMode === 'transparent' && (
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: '1.4' }}>
+                      Use this when your template already has a fully transparent hole cut out for the profile picture.
+                    </p>
+                  )}
+                </div>
+
+                <div className="input-group">
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Mask Radius</label>
                   <input 
                     type="number" 
@@ -245,6 +302,9 @@ export default function App() {
                     value={config.pfp.radius}
                     onChange={e => setConfig(c => ({...c, pfp: {...c.pfp, radius: Number(e.target.value)}}))}
                   />
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Adjust this to change the size of the circular crop area for the user's photo.
+                  </p>
                 </div>
 
                 <div className="input-group">
@@ -255,18 +315,9 @@ export default function App() {
                     value={config.pfp.borderColor}
                     onChange={e => setConfig(c => ({...c, pfp: {...c.pfp, borderColor: e.target.value}}))}
                   />
-                </div>
-
-                <div className="input-group">
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Mask Processing Mode</label>
-                  <select 
-                    className="text-input" 
-                    value={config.pfp.maskMode}
-                    onChange={e => setConfig(c => ({...c, pfp: {...c.pfp, maskMode: e.target.value}}))}
-                  >
-                    <option value="detect-purple-tag">Detect Purple Tag</option>
-                    <option value="transparent">Fully Transparent</option>
-                  </select>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Optional: Hex color code for a border drawn around the mask (e.g. #ffffff). Set Border Width to 0 to hide it.
+                  </p>
                 </div>
               </div>
 
@@ -277,15 +328,19 @@ export default function App() {
                 <label className="input-label">Text System Setup</label>
                 
                 <div className="input-group">
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Global Text Color</label>
-                  <input 
-                    type="text" 
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Font Family</label>
+                  <select 
                     className="text-input" 
-                    value={config.text.color}
-                    onChange={e => setConfig(c => ({...c, text: {...c.text, color: e.target.value}}))}
-                  />
+                    value={config.text.fontName}
+                    onChange={e => setConfig(c => ({...c, text: {...c.text, fontName: e.target.value}}))}
+                  >
+                    <option value="Outfit">Outfit</option>
+                    <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                    <option value="Inter">Inter</option>
+                    <option value="Arial">Arial</option>
+                  </select>
                 </div>
-                
+
                 <div className="input-group">
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Alignment</label>
                   <select 
@@ -299,13 +354,31 @@ export default function App() {
                   </select>
                 </div>
 
+                <div className="input-group" style={{ borderRadius: 'var(--radius-md)' }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Global Text Color</label>
+                  <div style={{ marginTop: '10px', width: '100%' }}>
+                    <ColorPicker 
+                      width={pickerWidth}
+                      value={config.text.color} 
+                      onChange={(val) => setConfig(c => ({...c, text: {...c.text, color: val}}))}
+                      hidePresets={true}
+                      style={{ body: { background: 'transparent' } }}
+                    />
+                  </div>
+                </div>
+
                 {config.text.fields.map((field, idx) => (
                   <div key={field.id} className="input-group" style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-glass)' }}>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--accent-purple-light)', textTransform: 'uppercase', fontWeight: 600 }}>{field.id} Layer</label>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--accent-purple-light)', textTransform: 'uppercase', fontWeight: 600 }}>
+                      {field.id === 'optional' ? 'Company / Institution' : field.id} Layer
+                    </label>
+                    <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                      Drag this layer on the canvas to reposition.
+                    </p>
                     
                     <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Size (px)</label>
+                        <label style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Font Size (px)</label>
                         <input 
                           type="number" 
                           className="text-input" 
@@ -319,20 +392,29 @@ export default function App() {
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Style</label>
-                        <select 
-                          className="text-input" 
-                          style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                          value={field.style}
-                          onChange={e => {
-                            const newFields = [...config.text.fields];
-                            newFields[idx].style = e.target.value;
-                            setConfig(c => ({...c, text: {...c.text, fields: newFields}}));
-                          }}
-                        >
-                          <option value="">Normal</option>
-                          <option value="bold">Bold</option>
-                        </select>
+                        <label style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Styles</label>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button 
+                            className={`toggle-btn small ${field.isBold ? 'active' : ''}`}
+                            onClick={() => {
+                              const newFields = [...config.text.fields];
+                              newFields[idx].isBold = !newFields[idx].isBold;
+                              setConfig(c => ({...c, text: {...c.text, fields: newFields}}));
+                            }}
+                          >
+                            B
+                          </button>
+                          <button 
+                            className={`toggle-btn small ${field.isItalic ? 'active' : ''}`}
+                            onClick={() => {
+                              const newFields = [...config.text.fields];
+                              newFields[idx].isItalic = !newFields[idx].isItalic;
+                              setConfig(c => ({...c, text: {...c.text, fields: newFields}}));
+                            }}
+                          >
+                            I
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -344,15 +426,30 @@ export default function App() {
           <hr style={{ border: 'none', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }} />
 
           {/* Action Buttons */}
-          <button 
-            className="btn-primary" 
-            onClick={downloadJson}
-            disabled={!imageSrc}
-            style={{ width: '100%' }}
-          >
-            <Download size={18} />
-            Export flyerConfig.json
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {imageSrc && (
+              <>
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => setShowPreview(true)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600 }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                >
+                  <Eye size={18} />
+                  Preview Output
+                </button>
+                <button 
+                  className="btn-primary" 
+                  onClick={downloadJson}
+                  style={{ width: '100%' }}
+                >
+                  <Download size={18} />
+                  Export flyerConfig.json
+                </button>
+              </>
+            )}
+          </div>
         </section>
 
         {/* Right Side: Visual Workspace */}
@@ -365,7 +462,7 @@ export default function App() {
               </span>
             </div>
             
-            <div ref={containerRef} style={{ position: 'relative', width: '100%', aspectRatio: imageSize.width && imageSize.height ? `${imageSize.width} / ${imageSize.height}` : '1', borderRadius: '12px', overflow: 'hidden', background: '#090610', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <div ref={containerRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', aspectRatio: imageSize.width && imageSize.height ? `${imageSize.width} / ${imageSize.height}` : '1', borderRadius: '12px', overflow: 'hidden', background: '#090610', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
               
               {imageSrc ? (
                 <div 
@@ -403,14 +500,18 @@ export default function App() {
                       style={{
                         left: config.text.left,
                         top: field.y,
-                        color: config.text.color,
+                        color: config.text.color.includes('gradient') ? 'transparent' : config.text.color,
+                        backgroundImage: config.text.color.includes('gradient') ? config.text.color : 'none',
+                        WebkitBackgroundClip: config.text.color.includes('gradient') ? 'text' : 'border-box',
+                        backgroundClip: config.text.color.includes('gradient') ? 'text' : 'border-box',
                         fontSize: field.size,
-                        fontWeight: field.style === 'bold' ? 'bold' : 'normal',
+                        fontWeight: field.isBold ? 'bold' : 'normal',
+                        fontStyle: field.isItalic ? 'italic' : 'normal',
                         textAlign: config.text.align,
-                        fontFamily: config.text.fontName === 'OutfitFont' ? 'Outfit' : 'sans-serif'
+                        fontFamily: config.text.fontName || 'sans-serif'
                       }}
                     >
-                      {field.id.toUpperCase()}
+                      {field.id === 'optional' ? 'COMPANY' : field.id.toUpperCase()}
                     </div>
                   ))}
                 </div>
@@ -426,6 +527,14 @@ export default function App() {
         </section>
 
       </main>
+
+      {showPreview && (
+        <PreviewModal 
+          config={config} 
+          templateImageSrc={imageSrc} 
+          onClose={() => setShowPreview(false)} 
+        />
+      )}
     </div>
   );
 }
