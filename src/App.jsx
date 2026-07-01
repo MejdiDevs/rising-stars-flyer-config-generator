@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Download, ImagePlus, Check, Eye } from 'lucide-react';
 import ColorPicker from 'react-best-gradient-color-picker';
-import PreviewModal from './PreviewModal';
+import PreviewCanvas from './PreviewModal';
 import './index.css';
 
 const DEFAULT_CONFIG = {
@@ -262,12 +262,11 @@ export default function App() {
             <>
               <hr style={{ border: 'none', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }} />
 
-              {/* Profile Picture Settings */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <label className="input-label">Profile Mask Configuration</label>
                 
                 <div className="input-group">
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Mask Processing Mode</label>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Preview Placeholder Style</label>
                   <select 
                     className="text-input" 
                     value={config.pfp.maskMode}
@@ -277,6 +276,9 @@ export default function App() {
                     <option value="detect-purple-tag">Auto-Detect Shape (Purple Placeholder)</option>
                     <option value="transparent">Use Transparent Image Hole</option>
                   </select>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--accent-purple-light)', marginTop: '4px', lineHeight: '1.4' }}>
+                    *This setting only affects how the placeholder is visualized in Preview Mode. It does not alter the final generated output.
+                  </p>
                   {config.pfp.maskMode === 'circle-on-top' && (
                     <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: '1.4' }}>
                       <strong>Recommended:</strong> Just pops the image into a simple circle directly on top of the template.
@@ -316,7 +318,7 @@ export default function App() {
                     onChange={e => setConfig(c => ({...c, pfp: {...c.pfp, borderColor: e.target.value}}))}
                   />
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Optional: Hex color code for a border drawn around the mask (e.g. #ffffff). Set Border Width to 0 to hide it.
+                    Optional: Hex color code for a border drawn around the mask (e.g. #ffffff).
                   </p>
                 </div>
               </div>
@@ -425,21 +427,11 @@ export default function App() {
 
           <hr style={{ border: 'none', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }} />
 
-          {/* Action Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {imageSrc && (
               <>
                 <button 
-                  className="btn-secondary" 
-                  onClick={() => setShowPreview(true)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600 }}
-                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                  onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                >
-                  <Eye size={18} />
-                  Preview Output
-                </button>
-                <button 
+
                   className="btn-primary" 
                   onClick={downloadJson}
                   style={{ width: '100%' }}
@@ -456,16 +448,30 @@ export default function App() {
         <section className="preview-container">
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '600px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Interactive Visual Setup</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Drag elements directly on canvas
-              </span>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Interactive Workspace</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Drag elements directly on canvas
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: showPreview ? 'var(--accent-purple-light)' : 'var(--text-secondary)' }}>Preview Mode</label>
+                <button 
+                  className={`toggle-switch ${showPreview ? 'active' : ''}`} 
+                  onClick={() => setShowPreview(!showPreview)}
+                >
+                  <div className="toggle-thumb" />
+                </button>
+              </div>
             </div>
             
             <div ref={containerRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', aspectRatio: imageSize.width && imageSize.height ? `${imageSize.width} / ${imageSize.height}` : '1', borderRadius: '12px', overflow: 'hidden', background: '#090610', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
               
               {imageSrc ? (
-                <div 
+                showPreview ? (
+                  <PreviewCanvas config={config} templateImageSrc={imageSrc} />
+                ) : (
+                  <div 
                   style={{
                     position: 'absolute',
                     width: imageSize.width,
@@ -515,6 +521,7 @@ export default function App() {
                     </div>
                   ))}
                 </div>
+                )
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center', gap: '15px' }}>
                   <ImagePlus size={32} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
@@ -524,17 +531,10 @@ export default function App() {
 
             </div>
           </div>
+
         </section>
 
       </main>
-
-      {showPreview && (
-        <PreviewModal 
-          config={config} 
-          templateImageSrc={imageSrc} 
-          onClose={() => setShowPreview(false)} 
-        />
-      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
-export default function PreviewModal({ config, templateImageSrc, onClose }) {
+export default function PreviewCanvas({ config, templateImageSrc }) {
   const canvasRef = useRef(null);
   const [templateLoaded, setTemplateLoaded] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
@@ -18,13 +18,7 @@ export default function PreviewModal({ config, templateImageSrc, onClose }) {
     optional: "ACME CORP"
   };
 
-  // Prevent background scrolling when modal is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+
 
   // Wait for fonts to be ready
   useEffect(() => {
@@ -266,37 +260,21 @@ export default function PreviewModal({ config, templateImageSrc, onClose }) {
   }, [templateLoaded, userImage, fontLoaded, config]);
 
   return (
-    <div className="preview-modal-overlay" onClick={onClose}>
-      <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
-        
-        <div className="preview-modal-header">
-          <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff' }}>Output Preview</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>This simulates how the final generated flyer will look.</p>
-          </div>
-          <button className="preview-close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
+    <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      {(!templateLoaded || !userImage) && (
+        <div className="preview-loading" style={{ position: 'absolute' }}>
+          <Loader2 className="spinning-icon" size={32} color="var(--accent-purple-light)" />
+          <p>Generating preview...</p>
         </div>
-
-        <div className="preview-modal-body">
-          {(!templateLoaded || !userImage) && (
-            <div className="preview-loading">
-              <Loader2 className="spinning-icon" size={32} color="var(--accent-purple-light)" />
-              <p>Generating preview...</p>
-            </div>
-          )}
-          
-          <canvas 
-            ref={canvasRef}
-            width={canvasSize}
-            height={canvasSize}
-            className="preview-canvas"
-            style={{ opacity: (templateLoaded && userImage) ? 1 : 0 }}
-          />
-        </div>
-
-      </div>
+      )}
+      
+      <canvas 
+        ref={canvasRef}
+        width={canvasSize}
+        height={canvasSize}
+        className="preview-canvas"
+        style={{ opacity: (templateLoaded && userImage) ? 1 : 0, width: '100%', height: 'auto', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}
+      />
     </div>
   );
 }
